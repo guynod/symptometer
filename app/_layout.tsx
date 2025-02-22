@@ -5,7 +5,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { ErrorBoundary } from 'react-error-boundary';
-import firebaseService, { initializeFirebase } from '../config/firebase';
+import { initializeFirebase } from '../config/firebase';
+import { Slot } from 'expo-router';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -15,6 +16,10 @@ LogBox.ignoreLogs([
   'Setting a timer',
   'AsyncStorage has been extracted from react-native core',
 ]);
+
+export const unstable_settings = {
+  initialRouteName: '(tabs)',
+};
 
 export default function RootLayout() {
   useEffect(() => {
@@ -54,16 +59,7 @@ export default function RootLayout() {
     >
       <SafeAreaProvider>
         <StatusBar style="auto" />
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="add-symptom"
-            options={{
-              presentation: 'modal',
-              title: 'Add New Symptom',
-            }}
-          />
-        </Stack>
+        <Slot />
       </SafeAreaProvider>
     </ErrorBoundary>
   );
