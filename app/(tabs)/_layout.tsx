@@ -19,6 +19,16 @@ export default function TabsLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="inactive-symptoms"
+        options={{
+          title: 'Inactive',
+          headerTitle: 'Inactive Symptoms',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="archive" size={size} color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

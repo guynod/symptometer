@@ -47,22 +47,80 @@ export async function getActiveSymptoms(): Promise<Symptom[]> {
   try {
     console.log('Getting active symptoms...');
     const db = getDb();
-    console.log('Got Firestore instance');
+    
+    // Temporarily remove the isActive filter to see all symptoms
+    const q = query(
+      collection(db, COLLECTION_NAME),
+      orderBy('createdAt', 'desc')
+    );
+    console.log('Query created for all symptoms');
+
+    const querySnapshot = await getDocs(q);
+    console.log(`Found ${querySnapshot.docs.length} total symptoms in database`);
+    
+    // Log all symptoms and their isActive status
+    querySnapshot.docs.forEach(doc => {
+      const data = doc.data();
+      console.log('Document data:', {
+        id: doc.id,
+        name: data.name,
+        isActive: data.isActive,
+        isActiveType: typeof data.isActive,
+        hasIsActiveField: 'isActive' in data,
+        allFields: Object.keys(data)
+      });
+    });
+
+    // Now filter for active symptoms
+    const symptoms = querySnapshot.docs
+      .filter(doc => doc.data().isActive === true)
+      .map(doc => {
+        const data = { id: doc.id, ...doc.data() } as Partial<Symptom>;
+        console.log('Processing active symptom:', {
+          id: doc.id,
+          name: data.name || 'unnamed',
+          isActive: data.isActive
+        });
+        return validateSymptom(data as any);
+      });
+    
+    console.log(`Returning ${symptoms.length} validated active symptoms`);
+    return symptoms;
+  } catch (error) {
+    console.error('Error getting symptoms:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    throw new Error('Failed to fetch symptoms');
+  }
+}
+
+export async function getAllSymptoms(): Promise<Symptom[]> {
+  try {
+    console.log('Getting all symptoms...');
+    const db = getDb();
     
     const q = query(
       collection(db, COLLECTION_NAME),
-      where('isActive', '==', true),
       orderBy('createdAt', 'desc')
     );
-    console.log('Query created');
 
     const querySnapshot = await getDocs(q);
-    console.log(`Found ${querySnapshot.docs.length} symptoms`);
+    console.log(`Found ${querySnapshot.docs.length} total symptoms`);
     
-    return querySnapshot.docs.map(doc => {
-      const data = { id: doc.id, ...doc.data() };
-      return validateSymptom(data);
+    const symptoms = querySnapshot.docs.map(doc => {
+      const data = { id: doc.id, ...doc.data() } as Partial<Symptom>;
+      console.log('Processing symptom:', {
+        id: doc.id,
+        name: data.name || 'unnamed',
+        isActive: data.isActive
+      });
+      return validateSymptom(data as any);
     });
+    
+    console.log(`Returning ${symptoms.length} total symptoms`);
+    return symptoms;
   } catch (error) {
     console.error('Error getting symptoms:', error);
     if (error instanceof Error) {
@@ -97,12 +155,9 @@ export async function deleteSymptom(id: string): Promise<void> {
     const symptomRef = doc(db, COLLECTION_NAME, id);
     console.log('Created document reference');
     
-    // Soft delete
-    await updateDoc(symptomRef, {
-      isActive: false,
-      updatedAt: Timestamp.now(),
-    });
-    console.log('Successfully marked symptom as inactive');
+    // Hard delete
+    await deleteDoc(symptomRef);
+    console.log('Successfully deleted symptom');
   } catch (error) {
     console.error('Error deleting symptom:', error);
     if (error instanceof Error) {
@@ -110,5 +165,27 @@ export async function deleteSymptom(id: string): Promise<void> {
       console.error('Error stack:', error.stack);
     }
     throw new Error('Failed to delete symptom');
+  }
+}
+
+export async function reactivateSymptom(id: string): Promise<void> {
+  try {
+    console.log('Starting to reactivate symptom with ID:', id);
+    const db = getDb();
+    
+    const symptomRef = doc(db, COLLECTION_NAME, id);
+    
+    await updateDoc(symptomRef, {
+      isActive: true,
+      updatedAt: Timestamp.now(),
+    });
+    console.log('Successfully reactivated symptom');
+  } catch (error) {
+    console.error('Error reactivating symptom:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+    throw new Error('Failed to reactivate symptom');
   }
 } 
