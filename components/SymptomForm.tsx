@@ -8,6 +8,7 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  Modal,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { SymptomInput } from '../types/symptom';
@@ -19,15 +20,87 @@ interface SymptomFormProps {
   isLoading?: boolean;
 }
 
-const bodyParts = [
-  'head', 'neck', 'shoulder', 'arm', 'elbow', 'wrist', 'hand',
-  'chest', 'back', 'abdomen', 'hip', 'thigh', 'knee', 'leg',
-  'ankle', 'foot', 'general'
-];
+// Organized body parts by category
+const bodyPartCategories = {
+  head: {
+    label: 'Head & Face',
+    parts: [
+      'forehead',
+      'left eye',
+      'right eye',
+      'nose',
+      'left ear',
+      'right ear',
+      'left cheek',
+      'right cheek',
+      'mouth',
+      'jaw',
+      'throat',
+    ]
+  },
+  neck: {
+    label: 'Neck & Shoulders',
+    parts: [
+      'front neck',
+      'back neck',
+      'left shoulder',
+      'right shoulder',
+    ]
+  },
+  arms: {
+    label: 'Arms & Hands',
+    parts: [
+      'left upper arm',
+      'right upper arm',
+      'left elbow',
+      'right elbow',
+      'left forearm',
+      'right forearm',
+      'left wrist',
+      'right wrist',
+      'left hand',
+      'right hand',
+    ]
+  },
+  torso: {
+    label: 'Torso',
+    parts: [
+      'chest',
+      'upper back',
+      'middle back',
+      'lower back',
+      'upper abdomen',
+      'lower abdomen',
+    ]
+  },
+  legs: {
+    label: 'Legs & Feet',
+    parts: [
+      'left hip',
+      'right hip',
+      'left thigh',
+      'right thigh',
+      'left knee',
+      'right knee',
+      'left calf',
+      'right calf',
+      'left ankle',
+      'right ankle',
+      'left foot',
+      'right foot',
+    ]
+  },
+  other: {
+    label: 'Other',
+    parts: ['general', 'custom']
+  }
+};
 
 export default function SymptomForm({ onSubmit, initialValues, isLoading }: SymptomFormProps) {
   const [name, setName] = useState(initialValues?.name ?? '');
   const [bodyPart, setBodyPart] = useState(initialValues?.bodyPart ?? 'general');
+  const [customBodyPart, setCustomBodyPart] = useState('');
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
@@ -41,15 +114,17 @@ export default function SymptomForm({ onSubmit, initialValues, isLoading }: Symp
         return;
       }
       
-      if (!isValidBodyPart(bodyPart)) {
-        setError('Please select a valid body part');
+      const finalBodyPart = showCustomInput ? sanitizeString(customBodyPart) : bodyPart;
+      
+      if (showCustomInput && !finalBodyPart) {
+        setError('Please enter a body part');
         return;
       }
 
       // Create symptom input
       const symptomInput: SymptomInput = {
         name: sanitizedName,
-        bodyPart: bodyPart.toLowerCase(),
+        bodyPart: finalBodyPart.toLowerCase(),
       };
 
       await onSubmit(symptomInput);
@@ -57,8 +132,19 @@ export default function SymptomForm({ onSubmit, initialValues, isLoading }: Symp
       // Clear form on success
       setName('');
       setBodyPart('general');
+      setCustomBodyPart('');
+      setShowCustomInput(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
+    }
+  };
+
+  const handleBodyPartChange = (value: string) => {
+    if (value === 'custom') {
+      setShowCustomInput(true);
+    } else {
+      setShowCustomInput(false);
+      setBodyPart(value);
     }
   };
 
@@ -83,19 +169,47 @@ export default function SymptomForm({ onSubmit, initialValues, isLoading }: Symp
           <Text style={styles.label}>Body Part</Text>
           <View style={styles.pickerContainer}>
             <Picker
-              selectedValue={bodyPart}
-              onValueChange={setBodyPart}
+              selectedValue={showCustomInput ? 'custom' : bodyPart}
+              onValueChange={handleBodyPartChange}
               style={styles.picker}
+              itemStyle={styles.pickerItem} // This will make items more visible on iOS
             >
-              {bodyParts.map((part) => (
+              {Object.entries(bodyPartCategories).map(([category, { label, parts }]) => (
                 <Picker.Item
-                  key={part}
-                  label={part.charAt(0).toUpperCase() + part.slice(1)}
-                  value={part}
+                  key={category}
+                  label={`── ${label} ──`}
+                  value={`category_${category}`}
+                  enabled={false}
+                  style={styles.pickerHeader}
                 />
-              ))}
+              )).concat(
+                Object.values(bodyPartCategories).flatMap(({ parts }) =>
+                  parts.map(part => (
+                    <Picker.Item
+                      key={part}
+                      label={part.charAt(0).toUpperCase() + part.slice(1)}
+                      value={part}
+                    />
+                  ))
+                )
+              )}
             </Picker>
           </View>
+
+          {showCustomInput && (
+            <View style={styles.customInputContainer}>
+              <Text style={styles.label}>Custom Body Part</Text>
+              <TextInput
+                style={styles.input}
+                value={customBodyPart}
+                onChangeText={setCustomBodyPart}
+                placeholder="Enter specific body part (e.g., left thumb)"
+                maxLength={100}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+            </View>
+          )}
 
           {error && (
             <Text style={styles.error}>{error}</Text>
@@ -149,7 +263,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   picker: {
-    height: 50,
+    height: Platform.OS === 'ios' ? 200 : 50,
+  },
+  pickerItem: {
+    fontSize: 16,
+    height: 120, // Makes items taller and more visible on iOS
+  },
+  pickerHeader: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#666',
+    backgroundColor: '#f5f5f5',
+  },
+  customInputContainer: {
+    marginTop: 8,
   },
   error: {
     color: '#ff3b30',

@@ -66,12 +66,8 @@ export function validateSymptomOccurrence(data: any): SymptomOccurrence {
 }
 
 export function isValidBodyPart(bodyPart: string): boolean {
-  const validBodyParts = [
-    'head', 'neck', 'shoulder', 'arm', 'elbow', 'wrist', 'hand',
-    'chest', 'back', 'abdomen', 'hip', 'thigh', 'knee', 'leg',
-    'ankle', 'foot', 'general'
-  ];
-  return validBodyParts.includes(bodyPart.toLowerCase());
+  // Allow any non-empty string that's been sanitized
+  return typeof bodyPart === 'string' && bodyPart.trim().length > 0;
 }
 
 export function sanitizeString(input: string): string {
