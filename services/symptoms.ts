@@ -90,16 +90,25 @@ export async function updateSymptom(id: string, input: Partial<SymptomInput>): P
 
 export async function deleteSymptom(id: string): Promise<void> {
   try {
+    console.log('Starting to delete symptom with ID:', id);
     const db = getDb();
+    console.log('Got Firestore instance');
+    
     const symptomRef = doc(db, COLLECTION_NAME, id);
+    console.log('Created document reference');
     
     // Soft delete
     await updateDoc(symptomRef, {
       isActive: false,
       updatedAt: Timestamp.now(),
     });
+    console.log('Successfully marked symptom as inactive');
   } catch (error) {
     console.error('Error deleting symptom:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw new Error('Failed to delete symptom');
   }
 } 

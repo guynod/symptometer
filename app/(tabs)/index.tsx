@@ -7,60 +7,68 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  RefreshControl,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Symptom } from '../../types/symptom';
 import { getActiveSymptoms, deleteSymptom } from '../../services/symptoms';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getDb } from '../../config/firebase';
-import { addDoc, collection, deleteDoc, doc } from 'firebase/firestore';
-import { Timestamp } from 'firebase/firestore';
+import { useFocusEffect } from '@react-navigation/native';
+import { useCallback } from 'react';
 
 export default function HomeScreen() {
   const router = useRouter();
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const loadSymptoms = async (showLoadingIndicator = true) => {
+    try {
+      if (showLoadingIndicator) {
+        setIsLoading(true);
+      }
+      setError(null);
+      const fetchedSymptoms = await getActiveSymptoms();
+      console.log('Fetched symptoms:', fetchedSymptoms);
+      setSymptoms(fetchedSymptoms);
+    } catch (err) {
+      console.error('Error loading symptoms:', err);
+      setError('Failed to load symptoms');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Initial load
   useEffect(() => {
     loadSymptoms();
   }, []);
 
+  // Refresh symptoms list when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Screen focused, refreshing symptoms');
+      loadSymptoms(false);
+    }, [])
+  );
+
+  // Web-specific polling refresh
   useEffect(() => {
-    // Test Firebase connection
-    const testConnection = async () => {
-      try {
-        const db = getDb();
-        const testDoc = await addDoc(collection(db, 'symptoms'), {
-          name: 'Test Symptom',
-          bodyPart: 'general',
-          createdAt: Timestamp.now(),
-          updatedAt: Timestamp.now(),
-          isActive: true
-        });
-        console.log('Firebase connection successful, test document created:', testDoc.id);
-        // Clean up test document
-        await deleteDoc(doc(db, 'symptoms', testDoc.id));
-      } catch (error) {
-        console.error('Firebase connection test failed:', error);
-      }
-    };
-    testConnection();
+    if (Platform.OS === 'web') {
+      const interval = setInterval(() => {
+        loadSymptoms(false);
+      }, 5000); // Refresh every 5 seconds on web
+      return () => clearInterval(interval);
+    }
   }, []);
 
-  const loadSymptoms = async () => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      const fetchedSymptoms = await getActiveSymptoms();
-      setSymptoms(fetchedSymptoms);
-    } catch (err) {
-      setError('Failed to load symptoms');
-      console.error('Error loading symptoms:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const handleRefresh = useCallback(() => {
+    setIsRefreshing(true);
+    loadSymptoms(false);
+  }, []);
 
   const handleDelete = async (symptom: Symptom) => {
     Alert.alert(
@@ -73,9 +81,13 @@ export default function HomeScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              console.log('Attempting to delete symptom:', symptom.id);
               await deleteSymptom(symptom.id);
-              await loadSymptoms(); // Refresh the list
+              console.log('Symptom deleted successfully');
+              // Refresh the symptoms list
+              await loadSymptoms(false);
             } catch (err) {
+              console.error('Error deleting symptom:', err);
               Alert.alert('Error', 'Failed to delete symptom');
             }
           },
@@ -111,7 +123,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.centerContainer}>
         <Text style={styles.errorText}>{error}</Text>
-        <TouchableOpacity style={styles.retryButton} onPress={loadSymptoms}>
+        <TouchableOpacity style={styles.retryButton} onPress={() => loadSymptoms()}>
           <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
@@ -134,6 +146,14 @@ export default function HomeScreen() {
           keyExtractor={item => item.id}
           style={styles.list}
           contentContainerStyle={styles.listContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={['#007AFF']}
+              tintColor="#007AFF"
+            />
+          }
         />
       )}
       

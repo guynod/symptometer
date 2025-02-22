@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import SymptomForm from '../components/SymptomForm';
 import { SymptomInput } from '../types/symptom';
@@ -22,7 +22,7 @@ export default function AddSymptomScreen() {
         console.error('Error details:', error.message);
         console.error('Error stack:', error.stack);
       }
-      throw new Error('Failed to add symptom. Please try again.');
+      Alert.alert('Error', 'Failed to add symptom. Please try again.');
     } finally {
       setIsLoading(false);
     }
