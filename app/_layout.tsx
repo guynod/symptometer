@@ -18,9 +18,23 @@ LogBox.ignoreLogs([
 
 export default function RootLayout() {
   useEffect(() => {
-    initializeFirebase().then(() => {
-      SplashScreen.hideAsync();
-    });
+    async function initApp() {
+      try {
+        console.log('Starting Firebase initialization...');
+        await initializeFirebase();
+        console.log('Firebase initialized successfully');
+        await SplashScreen.hideAsync();
+        console.log('Splash screen hidden');
+      } catch (error) {
+        console.error('Error during app initialization:', error);
+        if (error instanceof Error) {
+          console.error('Error details:', error.message);
+          console.error('Error stack:', error.stack);
+        }
+      }
+    }
+    
+    initApp();
   }, []);
 
   return (

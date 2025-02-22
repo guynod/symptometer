@@ -11,11 +11,17 @@ export default function AddSymptomScreen() {
 
   const handleSubmit = async (symptomInput: SymptomInput) => {
     try {
+      console.log('Starting symptom submission:', symptomInput);
       setIsLoading(true);
-      await addSymptom(symptomInput);
+      const symptomId = await addSymptom(symptomInput);
+      console.log('Symptom added successfully with ID:', symptomId);
       router.back(); // Return to previous screen after successful addition
     } catch (error) {
-      console.error('Error adding symptom:', error);
+      console.error('Error in handleSubmit:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       throw new Error('Failed to add symptom. Please try again.');
     } finally {
       setIsLoading(false);

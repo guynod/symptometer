@@ -18,18 +18,27 @@ const COLLECTION_NAME = 'symptoms';
 
 export async function addSymptom(input: SymptomInput): Promise<string> {
   try {
+    console.log('Starting to add symptom:', input);
     const db = getDb();
+    console.log('Got Firestore instance');
+    
     const symptomData = {
       ...input,
       createdAt: Timestamp.now(),
       updatedAt: Timestamp.now(),
       isActive: true,
     };
+    console.log('Prepared symptom data:', symptomData);
 
     const docRef = await addDoc(collection(db, COLLECTION_NAME), symptomData);
+    console.log('Successfully added symptom with ID:', docRef.id);
     return docRef.id;
   } catch (error) {
     console.error('Error adding symptom:', error);
+    if (error instanceof Error) {
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+    }
     throw new Error('Failed to add symptom');
   }
 }
