@@ -7,6 +7,9 @@ export default function TabsLayout() {
       screenOptions={{
         tabBarActiveTintColor: '#007AFF',
         headerShown: true,
+        tabBarStyle: {
+          display: 'none', // Hide the tab bar since we only have one main tab
+        },
       }}
     >
       <Tabs.Screen

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,143 +8,74 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Modal,
+  Alert,
 } from 'react-native';
-import { Picker } from '@react-native-picker/picker';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SymptomInput } from '../types/symptom';
 import { isValidBodyPart, sanitizeString } from '../utils/validation';
+import { FrequentlyUsedItem, getFrequentlyUsedSymptoms, incrementSymptomUsage, incrementBodyPartUsage } from '../services/frequently-used';
+import BodyPartSelector from './BodyPartSelector';
 
 interface SymptomFormProps {
-  onSubmit: (symptom: SymptomInput) => Promise<void>;
+  onSubmit: (symptom: SymptomInput) => void;
+  onCancel: () => void;
   initialValues?: Partial<SymptomInput>;
   isLoading?: boolean;
 }
 
-// Organized body parts by category
-const bodyPartCategories = {
-  head: {
-    label: 'Head & Face',
-    parts: [
-      'forehead',
-      'left eye',
-      'right eye',
-      'nose',
-      'left ear',
-      'right ear',
-      'left cheek',
-      'right cheek',
-      'mouth',
-      'jaw',
-      'throat',
-    ]
-  },
-  neck: {
-    label: 'Neck & Shoulders',
-    parts: [
-      'front neck',
-      'back neck',
-      'left shoulder',
-      'right shoulder',
-    ]
-  },
-  arms: {
-    label: 'Arms & Hands',
-    parts: [
-      'left upper arm',
-      'right upper arm',
-      'left elbow',
-      'right elbow',
-      'left forearm',
-      'right forearm',
-      'left wrist',
-      'right wrist',
-      'left hand',
-      'right hand',
-    ]
-  },
-  torso: {
-    label: 'Torso',
-    parts: [
-      'chest',
-      'upper back',
-      'middle back',
-      'lower back',
-      'upper abdomen',
-      'lower abdomen',
-    ]
-  },
-  legs: {
-    label: 'Legs & Feet',
-    parts: [
-      'left hip',
-      'right hip',
-      'left thigh',
-      'right thigh',
-      'left knee',
-      'right knee',
-      'left calf',
-      'right calf',
-      'left ankle',
-      'right ankle',
-      'left foot',
-      'right foot',
-    ]
-  },
-  other: {
-    label: 'Other',
-    parts: ['general', 'custom']
-  }
-};
-
-export default function SymptomForm({ onSubmit, initialValues, isLoading }: SymptomFormProps) {
-  const [name, setName] = useState(initialValues?.name ?? '');
-  const [bodyPart, setBodyPart] = useState(initialValues?.bodyPart ?? 'general');
-  const [customBodyPart, setCustomBodyPart] = useState('');
-  const [showCustomInput, setShowCustomInput] = useState(false);
+const SymptomForm: React.FC<SymptomFormProps> = ({ onSubmit, onCancel, initialValues, isLoading }) => {
+  const [symptomName, setSymptomName] = useState(initialValues?.name ?? '');
+  const [bodyPart, setBodyPart] = useState(initialValues?.bodyPart ?? '');
+  const [showBodyMap, setShowBodyMap] = useState(false);
+  const [recentSymptoms, setRecentSymptoms] = useState<FrequentlyUsedItem[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  useEffect(() => {
+    loadRecentSymptoms();
+  }, []);
+
+  const loadRecentSymptoms = async () => {
     try {
-      setError(null);
-      
-      // Validate inputs
-      const sanitizedName = sanitizeString(name);
-      if (!sanitizedName) {
-        setError('Please enter a symptom name');
-        return;
-      }
-      
-      const finalBodyPart = showCustomInput ? sanitizeString(customBodyPart) : bodyPart;
-      
-      if (showCustomInput && !finalBodyPart) {
-        setError('Please enter a body part');
-        return;
-      }
-
-      // Create symptom input
-      const symptomInput: SymptomInput = {
-        name: sanitizedName,
-        bodyPart: finalBodyPart.toLowerCase(),
-      };
-
-      await onSubmit(symptomInput);
-      
-      // Clear form on success
-      setName('');
-      setBodyPart('general');
-      setCustomBodyPart('');
-      setShowCustomInput(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      const symptoms = await getFrequentlyUsedSymptoms();
+      setRecentSymptoms(symptoms);
+    } catch (error) {
+      console.error('Error loading recent symptoms:', error);
     }
   };
 
-  const handleBodyPartChange = (value: string) => {
-    if (value === 'custom') {
-      setShowCustomInput(true);
-    } else {
-      setShowCustomInput(false);
-      setBodyPart(value);
+  const handleSubmit = async () => {
+    if (!symptomName.trim()) {
+      setError('Please enter a symptom name');
+      return;
+    }
+    if (!bodyPart.trim()) {
+      setError('Please select a body part');
+      return;
+    }
+
+    try {
+      // Increment usage counts
+      await Promise.all([
+        incrementSymptomUsage(symptomName),
+        incrementBodyPartUsage(bodyPart)
+      ]);
+
+      const sanitizedSymptomName = sanitizeString(symptomName);
+      const sanitizedBodyPart = bodyPart.toLowerCase();
+
+      onSubmit({
+        name: sanitizedSymptomName,
+        bodyPart: sanitizedBodyPart,
+      });
+
+      // Reset form
+      setSymptomName('');
+      setBodyPart('');
+      setError(null);
+      setShowBodyMap(false);
+    } catch (error) {
+      console.error('Error submitting symptom:', error);
+      Alert.alert('Error', 'Failed to submit symptom. Please try again.');
     }
   };
 
@@ -155,80 +86,108 @@ export default function SymptomForm({ onSubmit, initialValues, isLoading }: Symp
     >
       <ScrollView style={styles.scrollView}>
         <View style={styles.form}>
+          {/* Symptom Name Section */}
           <Text style={styles.label}>Symptom Name</Text>
+          
+          {/* Recent Symptoms */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.recentContainer}
+          >
+            {recentSymptoms.map((symptom, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.recentItem,
+                  symptom.name === symptomName && styles.selectedItem
+                ]}
+                onPress={() => setSymptomName(symptom.name)}
+              >
+                <Text
+                  style={[
+                    styles.recentItemText,
+                    symptom.name === symptomName && styles.selectedItemText
+                  ]}
+                >
+                  {symptom.name}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          {/* Custom Symptom Input */}
           <TextInput
             style={styles.input}
-            value={name}
-            onChangeText={setName}
-            placeholder="Enter symptom name"
+            value={symptomName}
+            onChangeText={setSymptomName}
+            placeholder="Or enter a new symptom name"
             maxLength={50}
             autoCapitalize="none"
             autoCorrect={false}
           />
 
-          <Text style={styles.label}>Body Part</Text>
-          <View style={styles.pickerContainer}>
-            <Picker
-              selectedValue={showCustomInput ? 'custom' : bodyPart}
-              onValueChange={handleBodyPartChange}
-              style={styles.picker}
-              itemStyle={styles.pickerItem} // This will make items more visible on iOS
+          {/* Body Part Section */}
+          <View style={styles.bodyPartSection}>
+            <Text style={styles.label}>Body Part</Text>
+            <TouchableOpacity
+              style={styles.mapToggle}
+              onPress={() => setShowBodyMap(!showBodyMap)}
             >
-              {Object.entries(bodyPartCategories).map(([category, { label, parts }]) => (
-                <Picker.Item
-                  key={category}
-                  label={`── ${label} ──`}
-                  value={`category_${category}`}
-                  enabled={false}
-                  style={styles.pickerHeader}
-                />
-              )).concat(
-                Object.values(bodyPartCategories).flatMap(({ parts }) =>
-                  parts.map(part => (
-                    <Picker.Item
-                      key={part}
-                      label={part.charAt(0).toUpperCase() + part.slice(1)}
-                      value={part}
-                    />
-                  ))
-                )
-              )}
-            </Picker>
+              <MaterialCommunityIcons
+                name={showBodyMap ? 'close' : 'human'}
+                size={24}
+                color="#007AFF"
+              />
+              <Text style={styles.mapToggleText}>
+                {showBodyMap ? 'Hide Body Map' : 'Show Body Map'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
-          {showCustomInput && (
-            <View style={styles.customInputContainer}>
-              <Text style={styles.label}>Custom Body Part</Text>
-              <TextInput
-                style={styles.input}
-                value={customBodyPart}
-                onChangeText={setCustomBodyPart}
-                placeholder="Enter specific body part (e.g., left thumb)"
-                maxLength={100}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </View>
+          {showBodyMap ? (
+            <BodyPartSelector
+              onSelect={setBodyPart}
+              selectedPart={bodyPart}
+            />
+          ) : (
+            <TextInput
+              style={styles.input}
+              value={bodyPart}
+              onChangeText={setBodyPart}
+              placeholder="Enter body part"
+              maxLength={100}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
           )}
 
           {error && (
             <Text style={styles.error}>{error}</Text>
           )}
 
-          <TouchableOpacity
-            style={[styles.button, isLoading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            <Text style={styles.buttonText}>
-              {isLoading ? 'Saving...' : 'Add Symptom'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={onCancel}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.submitButton, isLoading && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={isLoading}
+            >
+              <Text style={[styles.buttonText, styles.submitButtonText, isLoading && styles.buttonDisabledText]}>
+                {isLoading ? 'Saving...' : 'Add Symptom'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -255,33 +214,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
-  pickerContainer: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    marginBottom: 16,
-    backgroundColor: '#fff',
+  recentContainer: {
+    marginBottom: 12,
   },
-  picker: {
-    height: Platform.OS === 'ios' ? 200 : 50,
+  recentItem: {
+    backgroundColor: '#f0f0f0',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginRight: 8,
   },
-  pickerItem: {
+  selectedItem: {
+    backgroundColor: '#007AFF',
+  },
+  recentItemText: {
+    color: '#333',
+  },
+  selectedItemText: {
+    color: '#fff',
+  },
+  bodyPartSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  mapToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mapToggleText: {
+    marginLeft: 8,
+    color: '#007AFF',
     fontSize: 16,
-    height: 120, // Makes items taller and more visible on iOS
-  },
-  pickerHeader: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#666',
-    backgroundColor: '#f5f5f5',
-  },
-  customInputContainer: {
-    marginTop: 8,
   },
   error: {
     color: '#ff3b30',
     marginBottom: 16,
     fontSize: 14,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
   button: {
     backgroundColor: '#007AFF',
@@ -293,9 +267,25 @@ const styles = StyleSheet.create({
   buttonDisabled: {
     opacity: 0.6,
   },
+  buttonDisabledText: {
+    color: '#fff',
+  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-}); 
+  cancelButton: {
+    backgroundColor: '#f0f0f0',
+    marginRight: 8,
+  },
+  submitButton: {
+    backgroundColor: '#007AFF',
+    marginLeft: 8,
+  },
+  submitButtonText: {
+    color: 'white',
+  },
+});
+
+export default SymptomForm; 

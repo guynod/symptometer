@@ -12,6 +12,16 @@ service cloud.firestore {
       allow delete: if true;  // Allow delete for development
     }
 
+    // Frequently used body parts collection
+    match /frequently-used-body-parts/{bodyPartId} {
+      allow read, write: if true;  // Allow all operations for development
+    }
+
+    // Frequently used symptoms collection
+    match /frequently-used-symptoms/{symptomId} {
+      allow read, write: if true;  // Allow all operations for development
+    }
+
     // Deny access to other collections by default
     match /{document=**} {
       allow read, write: if false;

@@ -28,9 +28,17 @@ export default function AddSymptomScreen() {
     }
   };
 
+  const handleCancel = () => {
+    router.back();
+  };
+
   return (
     <View style={styles.container}>
-      <SymptomForm onSubmit={handleSubmit} isLoading={isLoading} />
+      <SymptomForm 
+        onSubmit={handleSubmit} 
+        onCancel={handleCancel}
+        isLoading={isLoading} 
+      />
     </View>
   );
 }
