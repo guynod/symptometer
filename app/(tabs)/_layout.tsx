@@ -8,7 +8,8 @@ export default function TabsLayout() {
         tabBarActiveTintColor: '#007AFF',
         headerShown: true,
         tabBarStyle: {
-          display: 'none', // Hide the tab bar since we only have one main tab
+          backgroundColor: '#fff',
+          borderTopColor: '#ddd',
         },
       }}
     >
@@ -29,6 +30,16 @@ export default function TabsLayout() {
           headerTitle: 'Inactive Symptoms',
           tabBarIcon: ({ color, size }) => (
             <MaterialCommunityIcons name="archive" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="explore"
+        options={{
+          title: 'Explore',
+          headerTitle: 'Explore',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="compass" size={size} color={color} />
           ),
         }}
       />

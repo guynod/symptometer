@@ -12,14 +12,23 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Symptom } from '../../types/symptom';
 import { getAllSymptoms, reactivateSymptom } from '../../services/symptoms';
+import { useAuth } from '../../config/AuthContext';
 
 export default function InactiveSymptomsScreen() {
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   const loadSymptoms = async (showLoadingIndicator = true) => {
+    if (!user) {
+      setSymptoms([]);
+      setIsLoading(false);
+      setError(null);
+      return;
+    }
+
     try {
       if (showLoadingIndicator) {
         setIsLoading(true);
@@ -40,7 +49,7 @@ export default function InactiveSymptomsScreen() {
 
   useEffect(() => {
     loadSymptoms();
-  }, []);
+  }, [user]); // Add user as dependency
 
   const handleRefresh = () => {
     setIsRefreshing(true);
@@ -48,6 +57,11 @@ export default function InactiveSymptomsScreen() {
   };
 
   const handleReactivate = async (symptom: Symptom) => {
+    if (!user) {
+      console.error('Cannot reactivate symptom: User not authenticated');
+      return;
+    }
+
     Alert.alert(
       'Reactivate Symptom',
       `Are you sure you want to reactivate "${symptom.name}"?`,
@@ -89,6 +103,14 @@ export default function InactiveSymptomsScreen() {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  if (!user) {
+    return (
+      <View style={styles.centerContainer}>
+        <Text style={styles.emptyText}>Please sign in to view inactive symptoms</Text>
       </View>
     );
   }

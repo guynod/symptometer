@@ -1,12 +1,13 @@
-import { Stack } from 'expo-router';
 import { useEffect } from 'react';
+import { Stack } from 'expo-router';
 import { LogBox, View, ActivityIndicator, Text } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { ErrorBoundary } from 'react-error-boundary';
+import { ErrorBoundary, FallbackProps } from 'react-error-boundary';
 import { FirebaseProvider, useFirebase } from '../config/FirebaseContext';
-import { Slot } from 'expo-router';
+import { Slot, useRouter, useSegments } from 'expo-router';
+import { AuthProvider, useAuth } from '../config/AuthContext';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -21,64 +22,80 @@ export const unstable_settings = {
   initialRouteName: '(tabs)',
 };
 
-function LoadingScreen() {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-      <ActivityIndicator size="large" color="#007AFF" />
-      <Text style={{ marginTop: 10 }}>Initializing app...</Text>
-    </View>
-  );
-}
-
-function ErrorScreen({ error }: { error: Error }) {
-  return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-      <Text style={{ fontSize: 18, color: '#ff3b30', marginBottom: 10 }}>Error</Text>
-      <Text style={{ textAlign: 'center' }}>{error.message}</Text>
-    </View>
-  );
-}
-
-function RootLayoutContent() {
-  const { isInitialized, error } = useFirebase();
+function AuthStateListener() {
+  const { user, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
-    if (isInitialized) {
-      SplashScreen.hideAsync();
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === 'auth';
+
+    if (!user && !inAuthGroup) {
+      // Redirect to sign in if not authenticated
+      router.replace('/auth/sign-in');
+    } else if (user && inAuthGroup) {
+      // Redirect to home if authenticated
+      router.replace('/(tabs)');
     }
-  }, [isInitialized]);
-
-  if (error) {
-    return <ErrorScreen error={error} />;
-  }
-
-  if (!isInitialized) {
-    return <LoadingScreen />;
-  }
+  }, [user, segments, isLoading]);
 
   return <Slot />;
 }
 
+function AppContent() {
+  const { isInitialized, error } = useFirebase();
+
+  useEffect(() => {
+    if (error) {
+      console.error('Firebase initialization error:', error);
+    }
+    // Hide splash screen once Firebase initialization is complete or has errored
+    SplashScreen.hideAsync().catch(console.error);
+  }, [error, isInitialized]);
+
+  if (error) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Error initializing app</Text>
+        <Text>{error.message}</Text>
+      </View>
+    );
+  }
+
+  if (!isInitialized) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  // Only render AuthProvider after Firebase is initialized
+  return (
+    <AuthProvider>
+      <AuthStateListener />
+    </AuthProvider>
+  );
+}
+
+function ErrorFallback({ error }: FallbackProps) {
+  return (
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+      <Text>Something went wrong!</Text>
+      <Text>{error.message}</Text>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   return (
-    <ErrorBoundary
-      FallbackComponent={({ error }) => (
-        <SafeAreaProvider>
-          <StatusBar style="auto" />
-          <Stack>
-            <Stack.Screen
-              name="error"
-              options={{ title: 'Error' }}
-              initialParams={{ message: error.message }}
-            />
-          </Stack>
-        </SafeAreaProvider>
-      )}
-    >
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
       <SafeAreaProvider>
         <StatusBar style="auto" />
         <FirebaseProvider>
-          <RootLayoutContent />
+          <AppContent />
         </FirebaseProvider>
       </SafeAreaProvider>
     </ErrorBoundary>

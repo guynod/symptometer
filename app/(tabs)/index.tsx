@@ -6,20 +6,38 @@ import SymptomForm from '../../components/SymptomForm';
 import { SymptomItem } from '../../components/SymptomItem';
 import { Symptom } from '../../types/symptom';
 import { getAllSymptoms, addSymptom, deleteSymptom } from '../../services/symptoms';
+import { useAuth } from '../../config/AuthContext';
 
 export default function HomeScreen() {
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const { user } = useAuth();
 
   const loadSymptoms = async () => {
+    // Only attempt to load symptoms if we have an authenticated user
+    if (!user) {
+      console.log('No authenticated user, skipping symptom load');
+      setSymptoms([]);
+      setLoading(false);
+      return;
+    }
+
     try {
+      console.log('Starting to load symptoms for user:', user.uid);
       setLoading(true);
       const activeSymptoms = await getAllSymptoms();
-      setSymptoms(activeSymptoms.filter(s => s.isActive));
+      console.log('Successfully fetched symptoms:', activeSymptoms.length);
+      const filteredSymptoms = activeSymptoms.filter(s => s.isActive);
+      console.log('Active symptoms:', filteredSymptoms.length);
+      setSymptoms(filteredSymptoms);
     } catch (error) {
       console.error('Error loading symptoms:', error);
+      if (error instanceof Error) {
+        console.error('Error details:', error.message);
+        console.error('Error stack:', error.stack);
+      }
     } finally {
       setLoading(false);
     }
@@ -28,7 +46,7 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadSymptoms();
-    }, [])
+    }, [user]) // Add user as a dependency
   );
 
   const handleRefresh = async () => {
@@ -38,6 +56,11 @@ export default function HomeScreen() {
   };
 
   const handleAddSymptom = async (symptomInput: { name: string; bodyPart: string }) => {
+    if (!user) {
+      console.error('Cannot add symptom: User not authenticated');
+      return;
+    }
+
     try {
       await addSymptom(symptomInput);
       await loadSymptoms();
@@ -48,6 +71,11 @@ export default function HomeScreen() {
   };
 
   const handleDelete = async (symptomId: string) => {
+    if (!user) {
+      console.error('Cannot delete symptom: User not authenticated');
+      return;
+    }
+
     try {
       await deleteSymptom(symptomId);
       await loadSymptoms();
@@ -55,6 +83,15 @@ export default function HomeScreen() {
       console.error('Error deleting symptom:', error);
     }
   };
+
+  // If not authenticated, show appropriate message
+  if (!user) {
+    return (
+      <View style={styles.emptyContainer}>
+        <Text style={styles.emptyText}>Please sign in to view your symptoms</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>

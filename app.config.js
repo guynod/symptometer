@@ -23,14 +23,16 @@ module.exports = {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: 'com.yourusername.symptometer'
+      bundleIdentifier: 'com.yourusername.symptometer',
+      newArchEnabled: true
     },
     android: {
       adaptiveIcon: {
         foregroundImage: './assets/images/adaptive-icon.png',
         backgroundColor: '#FFFFFF'
       },
-      package: 'com.yourusername.symptometer'
+      package: 'com.yourusername.symptometer',
+      newArchEnabled: true
     },
     web: {
       favicon: './assets/images/favicon.png'

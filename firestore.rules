@@ -2,25 +2,57 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Symptoms collection rules
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isOwner(userId);
+      allow delete: if isOwner(userId);
+    }
+
+    // Symptoms collection
     match /symptoms/{symptomId} {
-      allow read: if true;  // Anyone can read symptoms
-      allow create: if request.resource.data.keys().hasAll(['name', 'bodyPart', 'createdAt', 'updatedAt', 'isActive'])
-                   && request.resource.data.isActive is bool
-                   && (!request.resource.data.keys().hasAny(['notes']) || request.resource.data.notes is string);
-      allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                   .hasAny(['name', 'bodyPart', 'updatedAt', 'isActive', 'notes']);
-      allow delete: if true;  // Allow delete for development
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
+    }
+
+    // Symptom logs collection
+    match /symptom-logs/{logId} {
+      allow read: if isAuthenticated() && request.auth.uid == resource.data.userId;
+      allow create: if isAuthenticated() && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if isAuthenticated() && request.auth.uid == resource.data.userId;
     }
 
     // Frequently used body parts collection
-    match /frequently-used-body-parts/{bodyPartId} {
-      allow read, write: if true;  // Allow all operations for development
+    match /frequently-used-body-parts/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     // Frequently used symptoms collection
-    match /frequently-used-symptoms/{symptomId} {
-      allow read, write: if true;  // Allow all operations for development
+    match /frequently-used-symptoms/{docId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
     }
 
     // Deny access to other collections by default

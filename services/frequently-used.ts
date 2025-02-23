@@ -1,5 +1,5 @@
-import { collection, query, getDocs, orderBy, limit, doc, setDoc, getDoc, increment, serverTimestamp, Timestamp } from 'firebase/firestore';
-import { getDb } from '../config/firebase';
+import { collection, query, getDocs, orderBy, limit, doc, setDoc, getDoc, increment, serverTimestamp, Timestamp, where } from 'firebase/firestore';
+import { getDb, getCurrentUser } from '../config/firebase';
 import { COLLECTIONS, FrequentlyUsedBodyPartDoc, FrequentlyUsedSymptomDoc } from '../config/firebase-schema';
 
 export interface FrequentlyUsedItem {
@@ -26,6 +26,11 @@ export async function getFrequentlyUsedBodyParts(limitCount: number = 5): Promis
   try {
     console.log('Fetching frequently used body parts...');
     const db = getDb();
+    const user = getCurrentUser();
+
+    if (!user) {
+      throw new Error('User must be authenticated to get frequently used body parts');
+    }
 
     // Ensure collection exists
     const collectionExists = await ensureCollectionExists(COLLECTIONS.FREQUENTLY_USED_BODY_PARTS);
@@ -35,7 +40,12 @@ export async function getFrequentlyUsedBodyParts(limitCount: number = 5): Promis
     }
 
     const bodyPartsRef = collection(db, COLLECTIONS.FREQUENTLY_USED_BODY_PARTS);
-    const q = query(bodyPartsRef, orderBy('count', 'desc'), limit(limitCount));
+    const q = query(
+      bodyPartsRef,
+      where('userId', '==', user.uid),
+      orderBy('count', 'desc'),
+      limit(limitCount)
+    );
     
     const querySnapshot = await getDocs(q);
     console.log(`Found ${querySnapshot.docs.length} frequently used body parts`);
@@ -63,6 +73,11 @@ export async function getFrequentlyUsedSymptoms(limitCount: number = 5): Promise
   try {
     console.log('Fetching frequently used symptoms...');
     const db = getDb();
+    const user = getCurrentUser();
+
+    if (!user) {
+      throw new Error('User must be authenticated to get frequently used symptoms');
+    }
 
     // Ensure collection exists
     const collectionExists = await ensureCollectionExists(COLLECTIONS.FREQUENTLY_USED_SYMPTOMS);
@@ -72,7 +87,12 @@ export async function getFrequentlyUsedSymptoms(limitCount: number = 5): Promise
     }
 
     const symptomsRef = collection(db, COLLECTIONS.FREQUENTLY_USED_SYMPTOMS);
-    const q = query(symptomsRef, orderBy('count', 'desc'), limit(limitCount));
+    const q = query(
+      symptomsRef,
+      where('userId', '==', user.uid),
+      orderBy('count', 'desc'),
+      limit(limitCount)
+    );
     
     const querySnapshot = await getDocs(q);
     console.log(`Found ${querySnapshot.docs.length} frequently used symptoms`);
@@ -105,7 +125,14 @@ export async function incrementBodyPartUsage(bodyPart: string): Promise<void> {
   try {
     console.log('Incrementing body part usage:', bodyPart);
     const db = getDb();
-    const docRef = doc(db, COLLECTIONS.FREQUENTLY_USED_BODY_PARTS, bodyPart.toLowerCase());
+    const user = getCurrentUser();
+
+    if (!user) {
+      throw new Error('User must be authenticated to increment body part usage');
+    }
+
+    const docId = `${user.uid}_${bodyPart.toLowerCase()}`;
+    const docRef = doc(db, COLLECTIONS.FREQUENTLY_USED_BODY_PARTS, docId);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
@@ -117,6 +144,7 @@ export async function incrementBodyPartUsage(bodyPart: string): Promise<void> {
     } else {
       console.log('Creating new body part usage record');
       const newDoc: Omit<FrequentlyUsedBodyPartDoc, 'lastUsed'> & { lastUsed: ReturnType<typeof serverTimestamp> } = {
+        userId: user.uid,
         name: bodyPart,
         count: 1,
         lastUsed: serverTimestamp(),
@@ -138,7 +166,14 @@ export async function incrementSymptomUsage(symptom: string): Promise<void> {
   try {
     console.log('Incrementing symptom usage:', symptom);
     const db = getDb();
-    const docRef = doc(db, COLLECTIONS.FREQUENTLY_USED_SYMPTOMS, symptom.toLowerCase());
+    const user = getCurrentUser();
+
+    if (!user) {
+      throw new Error('User must be authenticated to increment symptom usage');
+    }
+
+    const docId = `${user.uid}_${symptom.toLowerCase()}`;
+    const docRef = doc(db, COLLECTIONS.FREQUENTLY_USED_SYMPTOMS, docId);
     const docSnap = await getDoc(docRef);
     
     if (docSnap.exists()) {
@@ -150,6 +185,7 @@ export async function incrementSymptomUsage(symptom: string): Promise<void> {
     } else {
       console.log('Creating new symptom usage record');
       const newDoc: Omit<FrequentlyUsedSymptomDoc, 'lastUsed'> & { lastUsed: ReturnType<typeof serverTimestamp> } = {
+        userId: user.uid,
         name: symptom,
         count: 1,
         lastUsed: serverTimestamp(),

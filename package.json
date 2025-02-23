@@ -16,7 +16,9 @@
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-async-storage/async-storage": "^1.23.1",
     "@react-native-firebase/app": "^21.11.0",
+    "@react-native-firebase/auth": "^21.11.0",
     "@react-native-firebase/firestore": "^21.11.0",
     "@react-native-picker/picker": "^2.9.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
@@ -46,7 +48,8 @@
     "react-native-screens": "~4.4.0",
     "react-native-svg": "15.8.0",
     "react-native-web": "~0.19.13",
-    "react-native-webview": "13.12.5"
+    "react-native-webview": "13.12.5",
+    "sharp": "^0.33.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

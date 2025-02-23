@@ -11,21 +11,24 @@ const FirebaseContext = createContext<FirebaseContextType>({
   error: null,
 });
 
+// Initialize Firebase immediately
+const firebaseInitPromise = initializeFirebase().catch(err => {
+  console.error('Firebase initialization failed:', err);
+  return Promise.reject(err);
+});
+
 export function FirebaseProvider({ children }: { children: React.ReactNode }) {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    async function initialize() {
-      try {
-        await initializeFirebase();
+    firebaseInitPromise
+      .then(() => {
         setIsInitialized(true);
-      } catch (err) {
-        console.error('Firebase initialization error:', err);
+      })
+      .catch(err => {
         setError(err instanceof Error ? err : new Error('Failed to initialize Firebase'));
-      }
-    }
-    initialize();
+      });
   }, []);
 
   return (
