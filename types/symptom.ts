@@ -4,6 +4,7 @@ export interface Symptom {
   id: string;
   name: string;
   bodyPart: string;
+  notes?: string;  // Optional notes field
   createdAt: Timestamp;
   updatedAt: Timestamp;
   userId?: string; // For future auth implementation

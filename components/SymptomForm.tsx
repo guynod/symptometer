@@ -26,6 +26,7 @@ interface SymptomFormProps {
 const SymptomForm: React.FC<SymptomFormProps> = ({ onSubmit, onCancel, initialValues, isLoading }) => {
   const [symptomName, setSymptomName] = useState(initialValues?.name ?? '');
   const [bodyPart, setBodyPart] = useState(initialValues?.bodyPart ?? '');
+  const [notes, setNotes] = useState(initialValues?.notes ?? '');
   const [showBodyMap, setShowBodyMap] = useState(false);
   const [recentSymptoms, setRecentSymptoms] = useState<FrequentlyUsedItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -62,15 +63,18 @@ const SymptomForm: React.FC<SymptomFormProps> = ({ onSubmit, onCancel, initialVa
 
       const sanitizedSymptomName = sanitizeString(symptomName);
       const sanitizedBodyPart = bodyPart.toLowerCase();
+      const sanitizedNotes = notes.trim() ? sanitizeString(notes) : undefined;
 
       onSubmit({
         name: sanitizedSymptomName,
         bodyPart: sanitizedBodyPart,
+        notes: sanitizedNotes,
       });
 
       // Reset form
       setSymptomName('');
       setBodyPart('');
+      setNotes('');
       setError(null);
       setShowBodyMap(false);
     } catch (error) {
@@ -161,6 +165,18 @@ const SymptomForm: React.FC<SymptomFormProps> = ({ onSubmit, onCancel, initialVa
               autoCorrect={false}
             />
           )}
+
+          {/* Notes Section */}
+          <Text style={styles.label}>Notes (Optional)</Text>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Add any notes or comments about this symptom"
+            multiline
+            numberOfLines={4}
+            textAlignVertical="top"
+          />
 
           {error && (
             <Text style={styles.error}>{error}</Text>
@@ -285,6 +301,11 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: 'white',
+  },
+  notesInput: {
+    height: 100,
+    paddingTop: 12,
+    paddingBottom: 12,
   },
 });
 

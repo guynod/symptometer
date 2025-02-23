@@ -29,6 +29,11 @@ export function SymptomItem({ symptom, onDelete }: SymptomItemProps) {
       <View style={styles.info}>
         <Text style={styles.name}>{symptom.name}</Text>
         <Text style={styles.bodyPart}>{symptom.bodyPart}</Text>
+        {symptom.notes && (
+          <Text style={styles.notes} numberOfLines={2}>
+            {symptom.notes}
+          </Text>
+        )}
       </View>
       <TouchableOpacity
         onPress={handleDelete}
@@ -71,6 +76,12 @@ const styles = StyleSheet.create({
   bodyPart: {
     fontSize: 14,
     color: '#666',
+    marginBottom: 4,
+  },
+  notes: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
   },
   deleteButton: {
     padding: 8,

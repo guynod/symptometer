@@ -6,9 +6,10 @@ service cloud.firestore {
     match /symptoms/{symptomId} {
       allow read: if true;  // Anyone can read symptoms
       allow create: if request.resource.data.keys().hasAll(['name', 'bodyPart', 'createdAt', 'updatedAt', 'isActive'])
-                   && request.resource.data.isActive is bool;
+                   && request.resource.data.isActive is bool
+                   && (!request.resource.data.keys().hasAny(['notes']) || request.resource.data.notes is string);
       allow update: if request.resource.data.diff(resource.data).affectedKeys()
-                   .hasAny(['name', 'bodyPart', 'updatedAt', 'isActive']);
+                   .hasAny(['name', 'bodyPart', 'updatedAt', 'isActive', 'notes']);
       allow delete: if true;  // Allow delete for development
     }
 
