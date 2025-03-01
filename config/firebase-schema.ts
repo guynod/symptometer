@@ -3,6 +3,8 @@ import { Timestamp } from 'firebase/firestore';
 export interface UserDoc {
   id: string;
   email: string;
+  name?: string;
+  age?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

@@ -2,13 +2,14 @@ import { Timestamp } from 'firebase/firestore';
 
 export interface Symptom {
   id: string;
+  userId: string;
   name: string;
+  description: string;
+  severity: number;
   bodyPart: string;
-  notes?: string;  // Optional notes field
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  userId?: string; // For future auth implementation
-  isActive: boolean; // For soft delete functionality
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface SymptomOccurrence {

@@ -1,22 +1,20 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Text } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import SymptomForm from '../../components/SymptomForm';
 import { SymptomItem } from '../../components/SymptomItem';
 import { Symptom } from '../../types/symptom';
-import { getAllSymptoms, addSymptom, deleteSymptom } from '../../services/symptoms';
+import { getAllSymptoms, deleteSymptom } from '../../services/symptoms';
 import { useAuth } from '../../config/AuthContext';
 
 export default function HomeScreen() {
   const [symptoms, setSymptoms] = useState<Symptom[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showForm, setShowForm] = useState(false);
   const { user } = useAuth();
+  const router = useRouter();
 
   const loadSymptoms = async () => {
-    // Only attempt to load symptoms if we have an authenticated user
     if (!user) {
       console.log('No authenticated user, skipping symptom load');
       setSymptoms([]);
@@ -46,28 +44,13 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       loadSymptoms();
-    }, [user]) // Add user as a dependency
+    }, [user])
   );
 
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadSymptoms();
     setRefreshing(false);
-  };
-
-  const handleAddSymptom = async (symptomInput: { name: string; bodyPart: string }) => {
-    if (!user) {
-      console.error('Cannot add symptom: User not authenticated');
-      return;
-    }
-
-    try {
-      await addSymptom(symptomInput);
-      await loadSymptoms();
-      setShowForm(false);
-    } catch (error) {
-      console.error('Error adding symptom:', error);
-    }
   };
 
   const handleDelete = async (symptomId: string) => {
@@ -95,46 +78,45 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
-      {showForm ? (
-        <SymptomForm
-          onSubmit={handleAddSymptom}
-          onCancel={() => setShowForm(false)}
-        />
-      ) : (
-        <>
-          <FlatList
-            data={symptoms}
-            renderItem={({ item }) => (
-              <SymptomItem
-                symptom={item}
-                onDelete={() => handleDelete(item.id)}
-              />
-            )}
-            keyExtractor={item => item.id}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={handleRefresh}
-              />
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyText}>No symptoms added yet</Text>
-                <Text style={styles.emptySubtext}>
-                  Tap the button below to add your first symptom
-                </Text>
-              </View>
-            }
+      <FlatList
+        data={symptoms}
+        renderItem={({ item }) => (
+          <SymptomItem
+            symptom={item}
+            onDelete={() => handleDelete(item.id)}
           />
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={() => setShowForm(true)}
-          >
-            <MaterialCommunityIcons name="plus" size={24} color="#fff" />
-            <Text style={styles.addButtonText}>Add New Symptom</Text>
-          </TouchableOpacity>
-        </>
-      )}
+        )}
+        keyExtractor={item => item.id}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+          />
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No symptoms added yet</Text>
+            <Text style={styles.emptySubtext}>
+              Chat with the AI assistant to discuss your health
+            </Text>
+          </View>
+        }
+      />
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity
+          style={styles.chatButton}
+          onPress={() => router.push('/chat')}
+        >
+          <MaterialCommunityIcons name="chat-processing" size={24} color="#fff" />
+          <Text style={styles.chatButtonText}>Chat with AI Assistant</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => router.push('/add-symptom')}
+        >
+          <MaterialCommunityIcons name="plus" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
@@ -162,13 +144,18 @@ const styles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
   },
-  addButton: {
+  buttonContainer: {
+    flexDirection: 'row',
+    padding: 16,
+    gap: 12,
+  },
+  chatButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: '#007AFF',
     padding: 16,
-    margin: 16,
     borderRadius: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -176,10 +163,23 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  addButtonText: {
+  chatButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  addButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
